@@ -12,6 +12,7 @@
 
 #include <sys/uio.h>
 #include <sys/types.h>
+#include <sys/socket.h> // Added for struct sockaddr
 
 #ifdef __cplusplus
 extern "C" {
@@ -185,9 +186,67 @@ ssize_t hev_task_io_writev (int fd, const struct iovec *iov, int iovcnt,
  * Since: 3.2
  */
 void hev_task_io_splice (int fd_a_i, int fd_a_o, int fd_b_i, int fd_b_o,
-                         size_t buf_size, HevTaskIOYielder yielder,
-                         void *yielder_data);
+                    size_t buf_size, HevTaskIOYielder yielder,
+                    void *yielder_data);
 
+/**
+ * hev_task_io_connect:
+ * @fd: a file descriptor
+ * @addr: socket address
+ * @addrlen: socket address length
+ * @yielder: a #HevTaskIOYielder
+ * @yielder_data: user data
+ *
+ * The connect function establishes a connection with the socket specified by @addr.
+ *
+ * Returns: 0 on success, -1 on error.
+ *
+ * Since: 1.0
+ */
+int hev_task_io_connect (int fd, const struct sockaddr *addr, socklen_t addrlen,
+                         HevTaskIOYielder yielder, void *yielder_data);
+
+/**
+ * hev_task_io_sendto:
+ * @fd: a file descriptor
+ * @buf: buffer
+ * @len: buffer length
+ * @flags: flags
+ * @dest_addr: destination address
+ * @addrlen: destination address length
+ * @yielder: a #HevTaskIOYielder
+ * @yielder_data: user data
+ *
+ * The sendto function sends messages to another socket.
+ *
+ * Returns: the number of bytes sent, or -1 on error.
+ *
+ * Since: 1.0
+ */
+ssize_t hev_task_io_sendto (int fd, const void *buf, size_t len, int flags,
+                            const struct sockaddr *dest_addr, socklen_t addrlen,
+                            HevTaskIOYielder yielder, void *yielder_data);
+
+/**
+ * hev_task_io_recvfrom:
+ * @fd: a file descriptor
+ * @buf: buffer
+ * @len: buffer length
+ * @flags: flags
+ * @src_addr: source address
+ * @addrlen: source address length
+ * @yielder: a #HevTaskIOYielder
+ * @yielder_data: user data
+ *
+ * The recvfrom function receives messages from a socket.
+ *
+ * Returns: the number of bytes received, or -1 on error.
+ *
+ * Since: 1.0
+ */
+ssize_t hev_task_io_recvfrom (int fd, void *buf, size_t len, int flags,
+                              struct sockaddr *src_addr, socklen_t *addrlen,
+                              HevTaskIOYielder yielder, void *yielder_data);
 #ifdef __cplusplus
 }
 #endif

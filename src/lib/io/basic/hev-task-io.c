@@ -387,3 +387,68 @@ hev_task_io_splice (int fd_a_i, int fd_a_o, int fd_b_i, int fd_b_o,
 exit:
     task_io_splicer_fini (&splicer_f);
 }
+
+EXPORT_SYMBOL int
+hev_task_io_connect (int fd, const struct sockaddr *addr, socklen_t addrlen,
+                         HevTaskIOYielder yielder, void *yielder_data)
+{
+    int res;
+
+retry:
+    res = connect (fd, addr, addrlen);
+    if (res < 0 && errno == EINPROGRESS) {
+        if (yielder) {
+            if (yielder (HEV_TASK_WAITIO, yielder_data))
+                return -2;
+        } else {
+            hev_task_yield (HEV_TASK_WAITIO);
+        }
+        goto retry;
+    }
+
+    return res;
+}
+
+EXPORT_SYMBOL ssize_t
+hev_task_io_sendto (int fd, const void *buf, size_t len, int flags,
+                            const struct sockaddr *dest_addr, socklen_t addrlen,
+                            HevTaskIOYielder yielder, void *yielder_data)
+{
+    ssize_t s;
+
+retry:
+    s = sendto (fd, buf, len, flags, dest_addr, addrlen);
+    if (s < 0 && errno == EAGAIN) {
+        if (yielder) {
+            if (yielder (HEV_TASK_WAITIO, yielder_data))
+                return -2;
+        } else {
+            hev_task_yield (HEV_TASK_WAITIO);
+        }
+        goto retry;
+    }
+
+    return s;
+}
+
+EXPORT_SYMBOL ssize_t
+hev_task_io_recvfrom (int fd, void *buf, size_t len, int flags,
+                              struct sockaddr *src_addr, socklen_t *addrlen,
+                              HevTaskIOYielder yielder, void *yielder_data)
+{
+    ssize_t s;
+
+retry:
+    s = recvfrom (fd, buf, len, flags, src_addr, addrlen);
+    if (s < 0 && errno == EAGAIN) {
+        if (yielder) {
+            if (yielder (HEV_TASK_WAITIO, yielder_data))
+                return -2;
+        } else {
+            hev_task_yield (HEV_TASK_WAITIO);
+        }
+        goto retry;
+    }
+
+    return s;
+}
