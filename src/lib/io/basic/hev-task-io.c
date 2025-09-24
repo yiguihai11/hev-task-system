@@ -24,11 +24,12 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#include "kern/task/hev-task.h"
-#include "lib/io/buffer/hev-circular-buffer.h"
-#include "lib/misc/hev-compiler.h"
+#include <kern/task/hev-task.h>
+#include <lib/io/buffer/hev-circular-buffer.h>
+#include <lib/misc/hev-compiler.h>
 
-#include "hev-task-io.h"
+#include <hev-task-io.h>
+#include <poll.h>
 
 typedef struct _HevTaskIOSplicer HevTaskIOSplicer;
 
@@ -390,20 +391,46 @@ exit:
 
 EXPORT_SYMBOL int
 hev_task_io_connect (int fd, const struct sockaddr *addr, socklen_t addrlen,
-                         HevTaskIOYielder yielder, void *yielder_data)
+                     int timeout, HevTaskIOYielder yielder,
+                     void *yielder_data)
 {
+    HevTask *task = hev_task_self ();
     int res;
 
-retry:
     res = connect (fd, addr, addrlen);
-    if (res < 0 && errno == EINPROGRESS) {
-        if (yielder) {
-            if (yielder (HEV_TASK_WAITIO, yielder_data))
-                return -2;
+    if (res < 0 && (errno == EINPROGRESS || errno == EALREADY)) {
+        hev_task_add_fd (task, fd, POLLOUT);
+
+        if (timeout >= 0) {
+            if (hev_task_sleep (timeout) == 0) {
+                hev_task_del_fd (task, fd);
+                errno = ETIMEDOUT;
+                return -1;
+            }
         } else {
-            hev_task_yield (HEV_TASK_WAITIO);
+            if (yielder) {
+                if (yielder (HEV_TASK_WAITIO, yielder_data)) {
+                    hev_task_del_fd (task, fd);
+                    return -2;
+                }
+            } else {
+                hev_task_yield (HEV_TASK_WAITIO);
+            }
         }
-        goto retry;
+
+        hev_task_del_fd (task, fd);
+
+        int so_error = 0;
+        socklen_t len = sizeof (so_error);
+        res = getsockopt (fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+        if (res < 0)
+            return -1;
+
+        if (so_error == 0)
+            return 0;
+
+        errno = so_error;
+        return -1;
     }
 
     return res;

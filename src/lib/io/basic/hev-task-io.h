@@ -204,7 +204,8 @@ void hev_task_io_splice (int fd_a_i, int fd_a_o, int fd_b_i, int fd_b_o,
  * Since: 1.0
  */
 int hev_task_io_connect (int fd, const struct sockaddr *addr, socklen_t addrlen,
-                         HevTaskIOYielder yielder, void *yielder_data);
+                         int timeout, HevTaskIOYielder yielder,
+                         void *yielder_data);
 
 /**
  * hev_task_io_sendto:
